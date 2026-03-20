@@ -2,29 +2,31 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お酒配合コンシェルジュ Pro Max</title>
+    <title>お酒配合さん</title>
     <style>
         :root { --main: #4a90e2; --accent: #f39c12; --bg: #f5f7fa; }
         body { font-family: sans-serif; background: var(--bg); padding: 20px; display: flex; justify-content: center; }
         .app-container { width: 100%; max-width: 450px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .section { margin-bottom: 20px; padding: 15px; border: 1px solid #edf2f7; border-radius: 12px; }
+        label { display: block; font-size: 0.8rem; font-weight: bold; color: #666; }
         input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; font-size: 16px; margin-top: 5px; }
         .btn-search { background: #333; color: white; padding: 10px; border-radius: 8px; width: 100%; margin: 10px 0; border: none; cursor: pointer; font-weight: bold; }
         .btn-calc { background: var(--main); color: white; padding: 18px; width: 100%; border-radius: 12px; border: none; font-size: 1.2rem; cursor: pointer; font-weight: bold; }
-        #status { font-size: 0.8rem; color: #e67e22; text-align: center; margin-bottom: 10px; min-height: 1.2em; }
+        #status { font-size: 0.85rem; color: #e67e22; text-align: center; margin-bottom: 10px; min-height: 1.2em; font-weight: bold; background: #fff5eb; border-radius: 5px; padding: 5px; }
         .result-box { display: none; margin-top: 20px; padding: 20px; border-radius: 12px; background: #e7f3ff; border-left: 6px solid var(--main); }
+        .recovery-box { margin-top: 15px; padding: 15px; background: #fff8e1; border-radius: 10px; border-left: 6px solid var(--accent); display: none;}
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <h2 style="text-align:center; color:var(--main);">🍸 お酒計算 (検索特化型)</h2>
-    <div id="status"></div>
+    <h2 style="text-align:center; color:var(--main); margin-top:0;">🍸 お酒配合くん Ultra</h2>
+    <div id="status">銘柄を入力して検索してください</div>
 
     <div class="section">
-        <label>お酒の名前 (B)</label>
-        <input type="text" id="nameB" placeholder="ほろよい, 山崎, 氷結...">
-        <button class="btn-search" onclick="searchDDG('B')">DuckDuckGoで度数を探す</button>
+        <label>お酒B (原酒)</label>
+        <input type="text" id="nameB" placeholder="呉春, 山崎, ほろよい...">
+        <button class="btn-search" onclick="searchExtreme('B')">🔍 ネットから度数を解析</button>
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>度数(%)</label><input type="number" id="percentB" step="0.1" value="40"></div>
             <div style="flex:1;"><label>量(ml)</label><input type="number" id="amountB" value="30"></div>
@@ -32,58 +34,77 @@
     </div>
 
     <div class="section">
-        <label>割り材 (C)</label>
-        <input type="text" id="nameC" placeholder="炭酸水, コーラ...">
-        <button class="btn-search" onclick="searchDDG('C')">DuckDuckGoで度数を探す</button>
+        <label>割り材C / チェイサー</label>
+        <input type="text" id="nameC" placeholder="炭酸水, 水, コーラ...">
+        <button class="btn-search" onclick="searchExtreme('C')">🔍 ネットから度数を解析</button>
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>度数(%)</label><input type="number" id="percentC" step="0.1" value="0"></div>
             <div style="flex:1;"><label>目標(%)</label><input type="number" id="targetA" step="0.1" value="7"></div>
         </div>
     </div>
 
-    <button class="btn-calc" onclick="calculate()">黄金比を計算</button>
+    <button class="btn-calc" onclick="calculate()">計算する</button>
+
     <div id="result" class="result-box"></div>
+
+    <div id="recovery" class="recovery-box">
+        <label>【リカバリー】入れすぎた量 (ml)</label>
+        <input type="number" id="deltaD" placeholder="例: 20" oninput="calculateRecovery()">
+        <div id="recoveryText" style="margin-top:10px; font-weight:bold; color:#d35400;"></div>
+    </div>
 </div>
 
 <script>
-// DuckDuckGoのAPI（インスタント回答）を利用
-async function searchDDG(type) {
-    const name = document.getElementById('name' + type).value;
+async function searchExtreme(type) {
+    const name = document.getElementById('name' + type).value.trim();
     const status = document.getElementById('status');
     if (!name) return;
 
-    status.innerText = "🔍 DuckDuckGoで検索中...";
+    status.innerText = `⏳ 「${name}」の情報をネットから抽出中...`;
 
     try {
-        // DuckDuckGoのAPIを叩く (CORSを回避できる形式)
-        const response = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(name)}&format=json&no_html=1&skip_disambig=1`);
-        const data = await response.json();
+        // Wikipediaの検索窓口（Opensearch）を使って、まず「正しい記事名」を特定する
+        const searchUrl = `https://ja.wikipedia.org/w/api.php?action=opensearch&format=json&origin=*&search=${encodeURIComponent(name)}`;
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
         
-        // 検索結果の概要(Abstract)か、関連トピックから文字列を合体
-        let sourceText = (data.AbstractText + data.Heading + (data.RelatedTopics[0]?.Text || "")).toLowerCase();
-        
-        // 正規表現で「〇〇%」または「〇〇度」を抽出
-        // ほろよい等は3%なので、その周辺の数字を探す
-        const abvMatch = sourceText.match(/(\d+(\.\d+)?)\s?([%％]|度)/);
-        
-        if (abvMatch) {
-            document.getElementById('percent' + type).value = abvMatch[1];
-            status.innerText = `✅ ${name} の度数を ${abvMatch[1]}% と判定しました`;
+        let targetTitle = (searchData[1] && searchData[1][0]) ? searchData[1][0] : name;
+
+        // 特定した記事の「全文」を取得して解析
+        const contentUrl = `https://ja.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext&titles=${encodeURIComponent(targetTitle)}`;
+        const contentRes = await fetch(contentUrl);
+        const contentData = await contentRes.json();
+        const pages = contentData.query.pages;
+        const pageId = Object.keys(pages)[0];
+        const text = pages[pageId].extract || "";
+
+        // 解析ロジック：
+        // 日本酒や焼酎によくある「15度以上16度未満」や「アルコール分 15%」といった表現を根こそぎ拾う
+        const regex = /(?:アルコール(?:分|度数)?|度数|abv|vol)\D*?(\d+(\.\d+)?)\s?([%％度])/gi;
+        let match;
+        let candidates = [];
+
+        while ((match = regex.exec(text)) !== null) {
+            candidates.push(parseFloat(match[1]));
+        }
+
+        if (candidates.length > 0) {
+            // 最初に見つかった妥当な数字を採用
+            let result = candidates[0];
+            document.getElementById('percent' + type).value = result;
+            status.innerText = `✅ 「${targetTitle}」から ${result}% を検出！`;
         } else {
-            // 見つからない場合のバックアップ（よくあるお酒）
-            const backup = {"ほろよい": 3, "ストロング": 9, "氷結": 5, "ハイボール": 7};
-            let found = false;
-            for(let key in backup) {
-                if(name.includes(key)) {
-                    document.getElementById('percent' + type).value = backup[key];
-                    status.innerText = `💡 プリセットから ${backup[key]}% を適用しました`;
-                    found = true; break;
-                }
+            // 文字列の中にただ数字と%がある場合も探す
+            const simpleMatch = text.match(/(\d+(\.\d+)?)\s?[%％度]/);
+            if (simpleMatch) {
+                document.getElementById('percent' + type).value = simpleMatch[1];
+                status.innerText = `✅ 記事内の数値 ${simpleMatch[1]}% を採用しました`;
+            } else {
+                status.innerText = "❌ 解析不能。手動で入力してください";
             }
-            if(!found) status.innerText = "❌ 度数が見つかりませんでした。手入力してください。";
         }
     } catch (e) {
-        status.innerText = "⚠️ 接続エラーが発生しました";
+        status.innerText = "⚠️ 接続エラー";
     }
 }
 
@@ -96,7 +117,17 @@ function calculate() {
     
     const res = document.getElementById('result');
     res.style.display = 'block';
-    res.innerHTML = `<strong>完璧です！</strong><br>割り材を <strong>${d.toFixed(1)} ml</strong> 注げば ${target}% になります。`;
+    res.innerHTML = `<strong>完璧です！</strong><br>割り材を <strong>${d.toFixed(1)} ml</strong> 注いでください。`;
+    document.getElementById('recovery').style.display = 'block';
+    window.calcData = { pB, pC, target };
+}
+
+function calculateRecovery() {
+    const deltaD = parseFloat(document.getElementById('deltaD').value);
+    if (!deltaD || !window.calcData) return;
+    const { pB, pC, target } = window.calcData;
+    const deltaE = deltaD * (target - pC) / (pB - target);
+    document.getElementById('recoveryText').innerHTML = `原酒(B)を <strong>${deltaE.toFixed(1)} ml</strong> 追加すればリカバリーできます！`;
 }
 </script>
 </body>
