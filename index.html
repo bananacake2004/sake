@@ -2,31 +2,39 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お酒配合さん</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お酒配合コンシェルジュ Pro Ultra</title>
     <style>
-        :root { --main: #4a90e2; --accent: #f39c12; --bg: #f5f7fa; }
-        body { font-family: sans-serif; background: var(--bg); padding: 20px; display: flex; justify-content: center; }
-        .app-container { width: 100%; max-width: 450px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #edf2f7; border-radius: 12px; }
-        label { display: block; font-size: 0.8rem; font-weight: bold; color: #666; }
-        input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; font-size: 16px; margin-top: 5px; }
-        .btn-search { background: #333; color: white; padding: 10px; border-radius: 8px; width: 100%; margin: 10px 0; border: none; cursor: pointer; font-weight: bold; }
-        .btn-calc { background: var(--main); color: white; padding: 18px; width: 100%; border-radius: 12px; border: none; font-size: 1.2rem; cursor: pointer; font-weight: bold; }
-        #status { font-size: 0.85rem; color: #e67e22; text-align: center; margin-bottom: 10px; min-height: 1.2em; font-weight: bold; background: #fff5eb; border-radius: 5px; padding: 5px; }
-        .result-box { display: none; margin-top: 20px; padding: 20px; border-radius: 12px; background: #e7f3ff; border-left: 6px solid var(--main); }
-        .recovery-box { margin-top: 15px; padding: 15px; background: #fff8e1; border-radius: 10px; border-left: 6px solid var(--accent); display: none;}
+        :root { --main: #4a90e2; --accent: #f39c12; --bg: #f0f2f5; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 15px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 450px; background: white; padding: 25px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        .section { margin-bottom: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fafafa; }
+        label { display: block; font-size: 0.8rem; font-weight: 700; color: #555; margin-bottom: 8px; }
+        input { width: 100%; padding: 12px; border: 2px solid #eef0f2; border-radius: 12px; box-sizing: border-box; font-size: 16px; transition: 0.2s; }
+        input:focus { border-color: var(--main); outline: none; background: white; }
+        .btn-group { display: flex; gap: 8px; margin: 12px 0; }
+        .btn-search { flex: 3; background: #333; color: white; padding: 12px; border-radius: 10px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .btn-google { flex: 1; background: #ffffff; color: #ea4335; border: 2px solid #ea4335; padding: 10px; border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+        .btn-calc { background: var(--main); color: white; padding: 18px; width: 100%; border-radius: 14px; border: none; font-size: 1.2rem; cursor: pointer; font-weight: bold; margin-top: 10px; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3); }
+        #status { font-size: 0.85rem; color: #e67e22; text-align: center; margin-bottom: 12px; min-height: 1.4em; padding: 8px; border-radius: 8px; background: #fff9f0; border: 1px solid #ffe8cc; }
+        .result-box { display: none; margin-top: 20px; padding: 20px; border-radius: 16px; background: #eef6ff; border: 1px solid #d0e7ff; color: #2c3e50; }
+        .recovery-box { margin-top: 15px; padding: 20px; background: #fffcf0; border-radius: 16px; border: 1px solid #ffecb3; display: none;}
+        .hint { font-size: 0.7rem; color: #999; margin-top: 4px; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <h2 style="text-align:center; color:var(--main); margin-top:0;">🍸 お酒配合さん</h2>
-    <div id="status">銘柄を入力して検索してください</div>
+    <h2 style="text-align:center; color:var(--main); margin-top:0; letter-spacing: -1px;">🍸 Drink Mixer Ultra</h2>
+    <div id="status">銘柄を入力して解析ボタンをタップ</div>
 
     <div class="section">
-        <label>お酒B (原酒)</label>
-        <input type="text" id="nameB" placeholder="呉春, 山崎, ほろよい...">
-        <button class="btn-search" onclick="searchExtreme('B')">🔍 ネットから度数を解析</button>
+        <label>お酒B (原酒 / ベース)</label>
+        <input type="text" id="nameB" placeholder="竹鶴, 呉春, 山崎...">
+        <div class="btn-group">
+            <button class="btn-search" onclick="deepSearch('B')">🔍 ネット解析</button>
+            <button class="btn-google" onclick="manualGoogle('B')">Google</button>
+        </div>
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>度数(%)</label><input type="number" id="percentB" step="0.1" value="40"></div>
             <div style="flex:1;"><label>量(ml)</label><input type="number" id="amountB" value="30"></div>
@@ -34,78 +42,87 @@
     </div>
 
     <div class="section">
-        <label>割り材C / チェイサー</label>
-        <input type="text" id="nameC" placeholder="炭酸水, 水, コーラ...">
-        <button class="btn-search" onclick="searchExtreme('C')">🔍 ネットから度数を解析</button>
+        <label>割り材C (ファンタ, 炭酸水...)</label>
+        <input type="text" id="nameC" placeholder="ファンタグレープ, コーラ...">
+        <div class="btn-group">
+            <button class="btn-search" onclick="deepSearch('C')">🔍 ネット解析</button>
+            <button class="btn-google" onclick="manualGoogle('C')">Google</button>
+        </div>
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>度数(%)</label><input type="number" id="percentC" step="0.1" value="0"></div>
             <div style="flex:1;"><label>目標(%)</label><input type="number" id="targetA" step="0.1" value="7"></div>
         </div>
     </div>
 
-    <button class="btn-calc" onclick="calculate()">計算する</button>
+    <button class="btn-calc" onclick="calculate()">配合比を計算する</button>
 
     <div id="result" class="result-box"></div>
 
     <div id="recovery" class="recovery-box">
-        <label>【リカバリー】入れすぎた量 (ml)</label>
+        <label style="color:var(--accent)">【修正】Cを入れすぎた量 (ml)</label>
         <input type="number" id="deltaD" placeholder="例: 20" oninput="calculateRecovery()">
-        <div id="recoveryText" style="margin-top:10px; font-weight:bold; color:#d35400;"></div>
+        <div id="recoveryText" style="margin-top:12px; font-weight:bold; color:#d35400; font-size: 1.1rem;"></div>
     </div>
 </div>
 
 <script>
-async function searchExtreme(type) {
+// 確実に度数を補完するための内部リスト
+const masterDB = {
+    "竹鶴": 43, "呉春": 15.5, "ファンタ": 0, "コーラ": 0, "三ツ矢サイダー": 0, 
+    "オレンジジュース": 0, "烏龍茶": 0, "午後の紅茶": 0, "水": 0, "炭酸水": 0
+};
+
+function manualGoogle(type) {
+    const name = document.getElementById('name' + type).value;
+    if(!name) return;
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(name + " 度数 %")}`, '_blank');
+}
+
+async function deepSearch(type) {
     const name = document.getElementById('name' + type).value.trim();
     const status = document.getElementById('status');
     if (!name) return;
 
-    status.innerText = `⏳ 「${name}」の情報をネットから抽出中...`;
+    status.innerText = `⏳ 「${name}」をスキャン中...`;
 
-    try {
-        // Wikipediaの検索窓口（Opensearch）を使って、まず「正しい記事名」を特定する
-        const searchUrl = `https://ja.wikipedia.org/w/api.php?action=opensearch&format=json&origin=*&search=${encodeURIComponent(name)}`;
-        const searchRes = await fetch(searchUrl);
-        const searchData = await searchRes.json();
-        
-        let targetTitle = (searchData[1] && searchData[1][0]) ? searchData[1][0] : name;
-
-        // 特定した記事の「全文」を取得して解析
-        const contentUrl = `https://ja.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext&titles=${encodeURIComponent(targetTitle)}`;
-        const contentRes = await fetch(contentUrl);
-        const contentData = await contentRes.json();
-        const pages = contentData.query.pages;
-        const pageId = Object.keys(pages)[0];
-        const text = pages[pageId].extract || "";
-
-        // 解析ロジック：
-        // 日本酒や焼酎によくある「15度以上16度未満」や「アルコール分 15%」といった表現を根こそぎ拾う
-        const regex = /(?:アルコール(?:分|度数)?|度数|abv|vol)\D*?(\d+(\.\d+)?)\s?([%％度])/gi;
-        let match;
-        let candidates = [];
-
-        while ((match = regex.exec(text)) !== null) {
-            candidates.push(parseFloat(match[1]));
+    // 1. 内部DBチェック（ファンタや竹鶴、呉春をここで確実に救済）
+    for (let key in masterDB) {
+        if (name.includes(key)) {
+            document.getElementById('percent' + type).value = masterDB[key];
+            status.innerText = `✅ DBより ${name} (${masterDB[key]}%) を適用`;
+            return;
         }
+    }
 
-        if (candidates.length > 0) {
-            // 最初に見つかった妥当な数字を採用
-            let result = candidates[0];
-            document.getElementById('percent' + type).value = result;
-            status.innerText = `✅ 「${targetTitle}」から ${result}% を検出！`;
-        } else {
-            // 文字列の中にただ数字と%がある場合も探す
-            const simpleMatch = text.match(/(\d+(\.\d+)?)\s?[%％度]/);
-            if (simpleMatch) {
-                document.getElementById('percent' + type).value = simpleMatch[1];
-                status.innerText = `✅ 記事内の数値 ${simpleMatch[1]}% を採用しました`;
-            } else {
-                status.innerText = "❌ 解析不能。手動で入力してください";
+    // 2. ネット解析（Wikipedia API）
+    try {
+        const url = `https://ja.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext&exchars=1000&titles=${encodeURIComponent(name)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const pages = data.query.pages;
+        const text = pages[Object.keys(pages)[0]].extract || "";
+
+        // 数値抽出 (例: 15%, 15.5度, 40 vol%)
+        const match = text.match(/(\d+(\.\d+)?)\s?([%％度]|vol)/);
+        if (match) {
+            let val = parseFloat(match[1]);
+            // アルコール度数として妥当な範囲(0-96%)かチェック
+            if (val >= 0 && val <= 96) {
+                document.getElementById('percent' + type).value = val;
+                status.innerText = `✅ 解析結果: ${val}%`;
+                return;
             }
         }
-    } catch (e) {
-        status.innerText = "⚠️ 接続エラー";
-    }
+        
+        // 3. 解析不能な場合、清涼飲料水キーワードがあれば0にする
+        const softDrinks = ["ソーダ", "ジュース", "茶", "水", "レモン", "グレープ", "メロン"];
+        if (softDrinks.some(s => name.includes(s))) {
+            document.getElementById('percent' + type).value = 0;
+            status.innerText = `💡 飲料水と判断 (0%)`;
+        } else {
+            status.innerText = "❓ 不明。Googleボタンで確認してください";
+        }
+    } catch (e) { status.innerText = "⚠️ 接続失敗"; }
 }
 
 function calculate() {
@@ -113,11 +130,15 @@ function calculate() {
     const pC = parseFloat(document.getElementById('percentC').value);
     const target = parseFloat(document.getElementById('targetA').value);
     const amtB = parseFloat(document.getElementById('amountB').value);
-    const d = amtB * (pB - target) / (target - pC);
     
+    if (target <= pC || target >= pB) {
+        alert("目標はBとCの間の数値にしてください"); return;
+    }
+
+    const d = amtB * (pB - target) / (target - pC);
     const res = document.getElementById('result');
     res.style.display = 'block';
-    res.innerHTML = `<strong>完璧です！</strong><br>割り材を <strong>${d.toFixed(1)} ml</strong> 注いでください。`;
+    res.innerHTML = `🏁 <strong>${target}%にするには：</strong><br>割り材を <strong>${d.toFixed(1)} ml</strong> 注いでください。`;
     document.getElementById('recovery').style.display = 'block';
     window.calcData = { pB, pC, target };
 }
@@ -127,7 +148,7 @@ function calculateRecovery() {
     if (!deltaD || !window.calcData) return;
     const { pB, pC, target } = window.calcData;
     const deltaE = deltaD * (target - pC) / (pB - target);
-    document.getElementById('recoveryText').innerHTML = `原酒(B)を <strong>${deltaE.toFixed(1)} ml</strong> 追加すればリカバリーできます！`;
+    document.getElementById('recoveryText').innerHTML = `原酒(B)を <strong>${deltaE.toFixed(1)} ml</strong> 追加！`;
 }
 </script>
 </body>
