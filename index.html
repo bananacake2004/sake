@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お酒配合コンシェルジュ | RecoverDrinker</title>
+    <style>
+        :root { --main: #4a90e2; --accent: #f39c12; --danger: #e74c3c; --bg: #f5f7fa; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { text-align: center; font-size: 1.5rem; color: var(--main); margin-bottom: 25px; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #edf2f7; border-radius: 12px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #7f8c8d; }
+        input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
+        input:focus { border-color: var(--main); outline: none; }
+        .row { display: flex; gap: 10px; align-items: flex-start; }
+        .row > div { flex: 1; }
+        button { cursor: pointer; border: none; transition: 0.2s; font-weight: bold; }
+        .btn-search { background: #edf2f7; color: #4a5568; padding: 8px; border-radius: 8px; width: 100%; font-size: 0.8rem; margin-bottom: 10px; }
+        .btn-search:hover { background: #e2e8f0; }
+        .btn-calc { background: var(--main); color: white; padding: 15px; width: 100%; border-radius: 12px; font-size: 1.1rem; margin-top: 10px; }
+        .btn-calc:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        #result, #recovery { display: none; margin-top: 20px; padding: 15px; border-radius: 12px; animation: fadeIn 0.5s; }
+        #result { background: #ebf8ff; border-left: 5px solid var(--main); }
+        #recovery { background: #fffaf0; border-left: 5px solid var(--accent); }
+        .suggestion { font-size: 0.8rem; color: #2ecc71; margin-top: 5px; font-style: italic; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>🍸 お酒配合コンシェルジュ</h1>
+
+    <div class="section">
+        <label>お酒B (ベース/原酒)</label>
+        <input type="text" id="nameB" placeholder="例: ウイスキー, ジン, 焼酎">
+        <button class="btn-search" onclick="autoSearch('B')">🔍 ネットから度数・相性を検索</button>
+        <div class="row">
+            <div>
+                <label>度数 (%)</label>
+                <input type="number" id="percentB" step="0.1" value="40">
+            </div>
+            <div>
+                <label>使う量 (ml)</label>
+                <input type="number" id="amountB" value="30">
+            </div>
+        </div>
+        <div id="suggestB" class="suggestion"></div>
+    </div>
+
+    <div class="section">
+        <label>お酒C (割り材/チェイサー)</label>
+        <input type="text" id="nameC" placeholder="例: 炭酸水, オレンジジュース">
+        <button class="btn-search" onclick="autoSearch('C')">🔍 ネットから度数を検索</button>
+        <div class="row">
+            <div>
+                <label>度数 (%)</label>
+                <input type="number" id="percentC" step="0.1" value="0">
+            </div>
+            <div>
+                <label>目標度数 (%)</label>
+                <input type="number" id="targetA" step="0.1" value="7">
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">黄金比を計算する</button>
+
+    <div id="result"></div>
+
+    <div id="recovery">
+        <label style="color: var(--accent);">⚠️ 割り材を入れすぎた場合 (Δd ml)</label>
+        <input type="number" id="deltaD" placeholder="例: 20" oninput="calculateRecovery()">
+        <div id="recoveryText" style="font-weight: bold; color: var(--danger); margin-top: 10px;"></div>
+    </div>
+</div>
+
+<script>
+// APIを使わない「味の合うお酒」提案用データ
+const tastePairs = {
+    "ウイスキー": "炭酸水、コーラ、水",
+    "ジン": "トニックウォーター、ライム、ソーダ",
+    "ウォッカ": "オレンジジュース、グレープフルーツ、トニック",
+    "テキーラ": "オレンジジュース、トニック、ライム",
+    "焼酎": "お茶、水、レモンソーダ",
+    "日本酒": "水（和らぎ水）",
+    "ラム": "コーラ、ジンジャーエール"
+};
+
+// Wikipedia APIを使った検索
+async function autoSearch(type) {
+    const name = document.getElementById('name' + type).value;
+    if (!name) return;
+    
+    const btn = event.target;
+    const originalText = btn.innerText;
+    btn.innerText = "検索中...";
+
+    try {
+        const response = await fetch(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`);
+        const data = await response.json();
+        
+        if (data.extract) {
+            // アルコール度数の抽出 (XX% や XX度)
+            const abvMatch = data.extract.match(/(\d+(\.\d+)?)\s?[%度]/);
+            if (abvMatch) {
+                document.getElementById('percent' + type).value = abvMatch[1];
+            }
+            
+            // 相性の良いお酒を提案 (APIを使わないロジック)
+            if (type === 'B') {
+                const suggestBox = document.getElementById('suggestB');
+                const matchedKey = Object.keys(tastePairs).find(k => name.includes(k));
+                if (matchedKey) {
+                    suggestBox.innerHTML = `💡 おすすめの割り材: ${tastePairs[matchedKey]}`;
+                } else {
+                    suggestBox.innerHTML = "💡 どんな割り材でも美味しく作れます！";
+                }
+            }
+        }
+    } catch (e) {
+        console.error("検索エラー", e);
+    } finally {
+        btn.innerText = originalText;
+    }
+}
+
+function calculate() {
+    const pB = parseFloat(document.getElementById('percentB').value);
+    const pC = parseFloat(document.getElementById('percentC').value);
+    const target = parseFloat(document.getElementById('targetA').value);
+    const amtB = parseFloat(document.getElementById('amountB').value);
+
+    if (target <= pC || target >= pB) {
+        alert("目標度数は、原酒と割り材の間の値にしてください。");
+        return;
+    }
+
+    // 計算式: D = B * (pB - target) / (target - pC)
+    const d = amtB * (pB - target) / (target - pC);
+    
+    const resDiv = document.getElementById('result');
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = `
+        <strong>計算完了！</strong><br>
+        お酒Cを <strong>${d.toFixed(1)} ml</strong> 注いでください。<br>
+        <small>総量: ${(amtB + d).toFixed(1)} ml</small>
+    `;
+
+    // リカバリー表示
+    document.getElementById('recovery').style.display = 'block';
+    window.calcData = { pB, pC, target }; 
+}
+
+function calculateRecovery() {
+    const deltaD = parseFloat(document.getElementById('deltaD').value);
+    if (!deltaD || !window.calcData) {
+        document.getElementById('recoveryText').innerText = "";
+        return;
+    }
+
+    const { pB, pC, target } = window.calcData;
+    // リカバリー計算式: ΔE = Δd * (target - pC) / (pB - target)
+    const deltaE = deltaD * (target - pC) / (pB - target);
+
+    document.getElementById('recoveryText').innerHTML = 
+        `リカバリー！お酒Bを <strong>${deltaE.toFixed(1)} ml</strong> 追加して混ぜればOK！`;
+}
+</script>
+
+</body>
+</html>
